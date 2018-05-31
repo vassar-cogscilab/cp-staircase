@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My experiment</title>
+    <script src="jspsych/jspsych.js"></script>
+    <script src="jspsych/plugins/jspsych-html-keyboard-response.js"></script>
+    <script src="jspsych/plugins/jspsych-image-keyboard-response.js"></script>
+    <link rel="stylesheet" href="jspsych/css/jspsych.css"></link>
+    <style>
+
+    div.ex1 {
+      position: absolute;
+      left: 0px;
+      }
+
+    div.ex2 {
+      position: absolute;
+      left: 200px
+      }
+
+    div.ex3 {
+      position: absolute;
+      left: 400px
+      }
+
+    div.ex4 {
+      position: absolute;
+      left: 600px
+      }
+
+    </style>
+  </head>
+  <body></body>
+
+  <script>
+  var stim_width_height = 200;
+  var min_dot_density = 100;
+  var max_dot_density = 2000;
+  var min_line_density = 30;
+  var max_line_density = 550;
+  var dim_a = 0.5;
+  var dim_b = 0.5;
+
+  var rel_bw_distance = 0.250;
+  var rel_wi_distance = 0.250;
+  var irr_distance = 0.250;
+
+    /* create timeline */
+    var timeline = [];
+
+    /* define welcome message trial */
+    var welcome = {
+      type: "html-keyboard-response",
+      stimulus: "Welcome to the experiment. Press any key to begin."
+    };
+    timeline.push(welcome);
+
+    /* define instructions trial */
+    var instructions = {
+      type: "html-keyboard-response",
+      stimulus: "<p>In this experiment, four stars will appear in the center" +
+      "of the screen. </p><p> If the <strong>first</strong> star from the left is different" +
+      "from the others, press 1. </p><p>If the <strong>second</strong> star from the left is different"+
+      "from the rest, press 2. </p><p> If the <strong>third</strong> star from the left is different from the rest"+
+      "press 3. </p><p> If the <strong>fourth</strong> star from the left is different from the rest, press 4. </p>" +
+          "<div style='float: left;'><img src='img/lineup.png'></img>" +
+          "<p class='small'><strong>Press 3 </strong></p></div>" +
+          "<p>Press any key to begin.</p>",
+      post_trial_gap: function() { return 2000; }
+    };
+    timeline.push(instructions);
+
+    /* test trials */
+    var fixation = {
+      type: 'html-keyboard-response',
+      stimulus: '<div style="font-size:60px;">+</div>',
+      choices: jsPsych.NO_KEYS,
+      trial_duration: function() {
+        return jsPsych.randomization.sampleWithoutReplacement([250, 500, 750, 1000, 1250, 1500, 1750, 2000], 1)[0];
+      },
+      data: {test_part: 'fixation'}
+    }
+
+    var test = {
+      type: "html-keyboard-response",
+      stimulus: '',
+      choices: ['1', '2', '3', '4'],
+      on_start: function(trial) {
+        dimension = randomize_dimension();
+        correct = randomize_correct();
+        stimulus = calculate_dimension_values(dimension, correct);
+        if(dimension == 'bw'){
+          distance = rel_bw_distance;
+        } else if(dimension == 'wi'){
+          distance = rel_wi_distance;
+        } else if(dimension == 'irr'){
+          distance = irr_distance;
+        }
+        trial.stimulus = stimulus;
+        trial.data = {test_part: 'test', dimension: dimension, distance: distance, correct_response: correct}
+      },
+      on_finish: function(data) {
+        data.correct = data.key_press == jsPsych.pluginAPI.convertKeyCharacterToKeyCode(data.correct_response);
+        if(dimension == 'bw'){
+          rel_bw_distance = adjust_distance(rel_bw_distance, data.correct);
+        } else if(dimension == 'wi'){
+          rel_wi_distance = adjust_distance(rel_wi_distance, data.correct);
+        } else if(dimension == 'irr'){
+          irr_distance = adjust_distance(irr_distance, data.correct);
+        }
+      },
+    }
+
+    /* determine which sunburst will be the odd-ball */
+    function randomize_correct() {
+      return jsPsych.randomization.sampleWithoutReplacement(['1', '2', '3', '4'], 1)[0];
+    }
+
+    var answer = randomize_correct();
+
+    function last_correct() {
+      return jsPsych.data.get().last(1).values()[0].correct;
+    }
+
+    function less_or_more() {
+      var less = jsPsych.randomization.sampleWithoutReplacement(['less', 'more'], 1)[0];
+      var boolean = less == "less";
+      return boolean;
+    }
+
+    /* determine which dimension will be tested for each trial */
+    function randomize_dimension() {
+      return jsPsych.randomization.sampleWithoutReplacement(['bw', 'wi', 'irr'], 1)[0];
+    }
+
+    function which_distance(dimension) {
+      if (dimension == 'bw') {
+        return rel_bw_distance;
+      }
+      else if (dimension == 'wi') {
+        return rel_wi_distance;
+      }
+      else {
+        return irr_distance;
+      }
+    }
+
+/*    function midpoint_between(distance) {
+      midpoint = Math.random() * 0.5;
+       if (midpoint < (0.5-distance) && midpoint > distance) {
+         midpoint_between(distance);
+       } else {
+         return midpoint;
+       }
+    }
+*/
+    function midpoint_between(distance) {
+      midpoint = Math.random() * (0.5-distance);
+      return midpoint;
+    }
+
+/*    function midpoint_within(distance) {
+      midpoint = Math.random() * 0.25;
+       if (midpoint < (0.25-distance) && midpoint > distance) {
+         midpoint_within(distance);
+       } else {
+         return midpoint;
+       }
+    }
+*/
+    function midpoint_within(distance) {
+      midpoint = Math.random() * (0.25-distance);
+      return midpoint;
+    }
+
+    function adjust_distance(distance, correct) {
+      if(correct){
+        distance += -0.025;
+      } else {
+        distance += 0.025;
+      }
+      return distance;
+    }
+
+    function get_dimension_values(x, y, bw, wi, irr){
+      var x_dim, y_dim;
+      if(x == 0){
+        x_dim = 0.5 - bw/2 - wi;
+      } else if(x == 1){
+        x_dim = 0.5 - bw/2;
+      } else if(x == 2){
+        x_dim = 0.5 + bw/2;
+      } else if(x == 3){
+        x_dim = 0.5 + bw/2 + wi;
+      }
+
+      if(y == 0){
+        y_dim = 0.5 - irr/2 - irr;
+      } else if(y == 1){
+        y_dim = 0.5 - irr/2;
+      } else if(y == 2){
+        y_dim = 0.5 + irr/2;
+      } else if(y == 3){
+        y_dim = 0.5 + irr/2 + irr;
+      }
+
+      return [x_dim, y_dim];
+    }
+
+    function calculate_dimension_values(dimension, correct) {
+      if (dimension == 'bw') {
+        var distance = which_distance(dimension);
+        var midpoint = midpoint_between(distance);
+        var boolean = less_or_more();
+        var same_line = midpoint;
+        if (boolean) {same_dot = midpoint - distance;}
+        else {same_dot = midpoint + distance;}
+        var odd_line = midpoint;
+        if (boolean) {odd_dot = midpoint + distance;}
+        else {odd_dot = midpoint - distance;}
+      }
+      else if (dimension == 'wi'){
+        var distance = which_distance(dimension);
+        if (less_or_more()) {var midpoint = midpoint_within(distance);}
+        else {var midpoint = (0.5 + midpoint_within(distance));}
+        var boolean = less_or_more();
+        var same_line = midpoint;
+        if (boolean) {same_dot = midpoint - (distance);}
+        else {same_dot = midpoint + (distance);}
+        var odd_line = midpoint
+        if (boolean) {odd_dot = midpoint + (distance);}
+        else {odd_dot = midpoint - (distance);}
+      }
+      else {
+        var distance = which_distance(dimension);
+        var midpoint = midpoint_between(distance);
+        var boolean = less_or_more();
+        if (boolean) {same_line = midpoint - distance;}
+        else {same_line = midpoint + distance;}
+        same_dot = midpoint;
+        if (boolean) {odd_line = midpoint + distance;}
+        else {odd_line = midpoint - distance;}
+        odd_dot = midpoint;
+      }
+      //adjust_distance(distance);
+      set = generate_set(same_line, same_dot, odd_line, odd_dot, correct);
+      return set;
+    }
+
+    function generate_set(same_line, same_dot, odd_line, odd_dot, correct) {
+      var html = '<div style="position: relative; width:'+stim_width_height*4+'px; height:'+stim_width_height+'px;">';
+      if (correct == '1'){
+        html += '<div class="ex1">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';
+      } else if (correct == '2') {
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';
+      } else if (correct == '3') {
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';
+      } else {
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(odd_dot, same_line)+'</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function generate_stim(dot_dim, line_dim) {
+      // params
+      var w = stim_width_height;
+      var r = stim_width_height/4;
+      var x = w / 2;
+      var y = w / 2;
+      var circle_r = stim_width_height / 200;
+      var minLineLength = 10;
+      var dot_density = min_dot_density + (max_dot_density-min_dot_density)*dot_dim;
+      var line_density = min_line_density + (max_line_density-min_line_density)*line_dim;
+
+      // svg string
+      var str = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + w + '">'
+
+      //Code for drawing the lines that come out of the circle.
+      //Each line starts in the center of the circle and is drawn outward
+      for (var i = 0; i < line_density; i++) {
+        var angle = Math.random() * Math.PI / 2;
+        var lineLength = r + minLineLength + (r - minLineLength) * Math.random();
+        var x2 = Math.cos(angle) * lineLength;
+        var y2 = Math.sin(angle) * lineLength;
+        if (Math.random() < 0.5) {
+          x2 = -x2;
+        }
+        if (Math.random() < 0.5) {
+          y2 = -y2;
+        }
+        x2 = x + x2;
+        y2 = y + y2;
+        str += '<line x1="' + x + '" y1="' + y + '" x2="' + x2 + '" y2="' + y2 + '" style="stroke:rgb(65,105,225); stroke-width:1;" />';
+      }
+
+      // draw circle
+      str += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" style="stroke:rgb(65,105,225); stroke-width:2; fill: rgb(255,255,255);"/>'
+
+      //Code for creating and dispersing the dots
+      for (var j = 0; j < dot_density; j++) {
+        do {
+          var x2 = Math.random() * 2 * r + x - r;
+          var y2 = Math.random() * 2 * r + y - r;
+        } while ((Math.pow(x - x2, 2) + Math.pow(y - y2, 2)) > Math.pow(r - circle_r - 2, 2));
+        str += '<circle cx="' + x2 + '" cy="' + y2 + '" r="' + circle_r + '" style="fill:rgb(65,105,225);" />';
+      }
+
+      str += "</svg>";
+
+      return str;
+    }
+
+    var feedback = {
+      type: "html-keyboard-response",
+      stimulus: function() {
+        var lastCorrect = jsPsych.data.get().last(1).values()[0].correct;
+        if(lastCorrect == true){
+          return "<p>Correct!</p>"
+        }
+        else {
+          return "<p>Incorrect!</p>"
+        }
+      },
+      choices: jsPsych.NO_KEYS,
+      trial_duration: 500
+    }
+
+    var test_procedure = {
+      timeline: [fixation, test, feedback],
+      //timeline_variables: test_stimuli,
+      repetitions: 20,
+      randomize_order: true
+    }
+    timeline.push(test_procedure);
+
+    var min_dot_density = 100;
+    var max_dot_density = 2000;
+    var min_line_density = 30;
+    var max_line_density = 550;
+    var dim_a = 0.5;
+    var dim_b = 0.5;
+
+    document.querySelector('body').innerHTML = generate_set(0.5, 0.5);
+
+    /* define debrief */
+
+    var debrief_block = {
+      type: "html-keyboard-response",
+      stimulus: function() {
+        var trials = jsPsych.data.get().filter({test_part: 'test'});
+        var correct_trials = trials.filter({correct: true});
+        var accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+        var rt = Math.round(correct_trials.select('rt').mean());
+
+        return "<p>You responded correctly on "+accuracy+"% of the trials.</p>"+
+        "<p>Your average response time was "+rt+"ms.</p>"+
+        "<p>Press any key to complete the experiment. Thank you!</p>";
+      }
+    };
+    timeline.push(debrief_block);
+
+/*    var training = {
+      type: "html-keyboard-response",
+      stimulus: "<p>In this experiment, a circle will appear in the center " +
+          "of the screen.</p><p>If the circle is <strong>blue</strong>, " +
+          "press the letter F on the keyboard as fast as you can.</p>" +
+          "<p>If the circle is <strong>orange</strong>, press the letter J " +
+          "as fast as you can.</p>" +
+          "<div style='float: left;'><img src='img/blue.png'></img>" +
+          "<p class='small'><strong>Press the F key</strong></p></div>" +
+          "<div class='float: right;'><img src='img/orange.png'></img>" +
+          "<p class='small'><strong>Press the J key</strong></p></div>" +
+          "<p>Press any key to begin.</p>"
+    };
+    timeline.push(training);
+*/
+
+    /* start the experiment */
+    jsPsych.init({
+      timeline: timeline,
+      on_finish: function() {
+        console.log(jsPsych.data.get().ignore('stimulus').json());
+      }
+    });
+
+  </script>
+</html>

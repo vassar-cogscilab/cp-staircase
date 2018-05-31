@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My experiment</title>
+    <script src="../jspsych.js"></script>
+    <script src="../plugins/jspsych-html-keyboard-response.js"></script>
+    <script src="../plugins/jspsych-image-keyboard-response.js"></script>
+    <link rel="stylesheet" href="../css/jspsych.css"></link>
+    <style>
+
+    div.ex1 {
+      position: absolute;
+      left: 0px;
+      }
+
+    div.ex2 {
+      position: absolute;
+      left: 200px
+      }
+
+    div.ex3 {
+      position: absolute;
+      left: 400px
+      }
+
+    div.ex4 {
+      position: absolute;
+      left: 600px
+      }
+
+    </style>
+  </head>
+  <body></body>
+
+  <script>
+  var stim_width_height = 200;
+  var min_dot_density = 100;
+  var max_dot_density = 2000;
+  var min_line_density = 30;
+  var max_line_density = 550;
+  var dim_a = 0.5;
+  var dim_b = 0.5;
+    /* create timeline */
+    var timeline = [];
+
+    /* define welcome message trial */
+    var welcome = {
+      type: "html-keyboard-response",
+      stimulus: "Welcome to the experiment. Press any key to begin."
+    };
+    timeline.push(welcome);
+
+    /* define instructions trial */
+    var instructions = {
+      type: "html-keyboard-response",
+      stimulus: "<p>In this experiment, four stars will appear in the center" +
+      "of the screen. </p><p> If the <strong>first</strong> star from the left is different" +
+      "from the others, press 1. </p><p>If the <strong>second</strong> star from the left is different"+
+      "from the rest, press 2. </p><p> If the <strong>third</strong> star from the left is different from the rest"+
+      "press 3. </p><p> If the <strong>fourth</strong> star from the left is different from the rest, press 4. </p>" +
+          "<div style='float: left;'><img src='img/lineup.png'></img>" +
+          "<p class='small'><strong>Press 3 </strong></p></div>" +
+          "<p>Press any key to begin.</p>",
+      post_trial_gap: function() { return 2000; }
+    };
+    timeline.push(instructions);
+
+    /* test trials */
+
+    /* pre-stimuli */
+    var fixation = {
+      type: 'html-keyboard-response',
+      stimulus: '<div style="font-size:60px;">+</div>',
+      choices: jsPsych.NO_KEYS,
+      trial_duration: function(){
+        return jsPsych.randomization.sampleWithoutReplacement([250, 500, 750, 1000, 1250, 1500, 1750, 2000], 1)[0];
+      },
+      data: {test_part: 'fixation'}
+    }
+
+    /* stimuli */
+    var test = {
+      type: "html-keyboard-response",
+      /* increases or decreases distance based off correct/incorrect response */
+      stimulus: function(){
+        var d = jsPsych.data.get().filter({test_part: 'test'});
+        if(d.count() > 0){
+          var lastCorrect = d.last(1).values()[0].correct;
+          if(lastCorrect == true){
+            distance += -0.1;
+          } else {
+            distance += 0.1;
+          }
+        }
+        /* determines if odd ball is more(right) or less(left) filled than same ball */
+        var is_left = left_or_right() == 'left';
+        var odd_ball = odd(is_left);
+        var same_ball = same(is_left);
+        // convert staircase to dimensions.
+        var stimulus = generate_set (0.5, same_ball, 0.5, odd_ball, correct_answer);
+        return stimulus;
+      },
+      choices: ['1', '2', '3', '4'],
+      data: function(){
+        return {test_part: 'test', correct_response: correct_answer}},
+      on_finish: function(data){
+        data.correct = data.key_press == jsPsych.pluginAPI.convertKeyCharacterToKeyCode(data.correct_response);
+        correct_answer = correct_answer();
+      },
+    }
+
+    function left_or_right(){
+      return jsPsych.randomization.sampleWithoutReplacement(['left', 'right'], 1)[0];
+    }
+
+    function correct_answer(){
+      return jsPsych.randomization.sampleWithoutReplacement(['1', '2', '3', '4'], 1)[0];
+    }
+
+    /* uses staircase method to compute dimension value based off of the distance */
+    /* function calculate_dimension_values(dimA, dimB, rel_bw_distance, rel_wi_distance, irr_distance){
+
+    } */
+    var distance = .9;
+    var correct_answer = correct_answer();
+    var odd = function(is_left){
+      var out;
+      if (is_left){
+        out = 0.5 - (distance / 2);
+      } else {
+        out = 0.5 + (distance / 2);
+      }
+      return out;
+    }
+    var same = function(is_left){
+      var out;
+      if (is_left){
+        out = 0.5 + (distance / 2);
+      } else {
+        out = 0.5 - (distance / 2);
+      }
+      return out;
+    }
+
+    var feedback = {
+      type: "html-keyboard-response",
+      stimulus: function(){
+        var lastCorrect = jsPsych.data.get().last(1).values()[0].correct;
+        if(lastCorrect == true){
+          return "<p>Correct!</p>"
+        }
+        else {
+          return "<p>Incorrect!</p>"
+        }
+      },
+      choices: jsPsych.NO_KEYS,
+      trial_duration: 5
+    }
+
+    var test_procedure = {
+      timeline: [fixation, test, feedback],
+      //timeline_variables: test_stimuli,
+      repetitions: 10,
+      randomize_order: true
+    }
+    timeline.push(test_procedure);
+
+    var min_dot_density = 100;
+    var max_dot_density = 2000;
+    var min_line_density = 30;
+    var max_line_density = 550;
+    var dim_a = 0.5;
+    var dim_b = 0.5;
+
+    document.querySelector('body').innerHTML = generate_set(0.5, 0.5);
+
+    /* define debrief */
+
+    var debrief_block = {
+      type: "html-keyboard-response",
+      stimulus: function() {
+
+        var trials = jsPsych.data.get().filter({test_part: 'test'});
+        var correct_trials = trials.filter({correct: true});
+        var accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+        var rt = Math.round(correct_trials.select('rt').mean());
+
+        return "<p>You responded correctly on "+accuracy+"% of the trials.</p>"+
+        "<p>Your average response time was "+rt+"ms.</p>"+
+        "<p>Press any key to complete the experiment. Thank you!</p>";
+
+      }
+    };
+    timeline.push(debrief_block);
+
+    /* start the experiment */
+    jsPsych.init({
+      timeline: timeline,
+      on_finish: function() {
+        jsPsych.data.displayData();
+      }
+    });
+
+    function generate_stim(dot_dim, line_dim){
+      // params
+      var w = stim_width_height;
+      var r = stim_width_height/4;
+      var x = w / 2;
+      var y = w / 2;
+      var circle_r = stim_width_height / 200;
+      var minLineLength = 10;
+      var dot_density = min_dot_density + (max_dot_density-min_dot_density)*dot_dim;
+      var line_density = min_line_density + (max_line_density-min_line_density)*line_dim;
+
+      // svg string
+      var str = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + w + '">'
+
+      //Code for drawing the lines that come out of the circle.
+      //Each line starts in the center of the circle and is drawn outward
+      for (var i = 0; i < line_density; i++) {
+        var angle = Math.random() * Math.PI / 2;
+        var lineLength = r + minLineLength + (r - minLineLength) * Math.random();
+        var x2 = Math.cos(angle) * lineLength;
+        var y2 = Math.sin(angle) * lineLength;
+        if (Math.random() < 0.5) {
+          x2 = -x2;
+        }
+        if (Math.random() < 0.5) {
+          y2 = -y2;
+        }
+        x2 = x + x2;
+        y2 = y + y2;
+        str += '<line x1="' + x + '" y1="' + y + '" x2="' + x2 + '" y2="' + y2 + '" style="stroke:rgb(65,105,225); stroke-width:1;" />';
+      }
+
+      // draw circle
+      str += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" style="stroke:rgb(65,105,225); stroke-width:2; fill: rgb(255,255,255);"/>'
+
+      //Code for creating and dispersing the dots
+      for (var j = 0; j < dot_density; j++) {
+        do {
+          var x2 = Math.random() * 2 * r + x - r;
+          var y2 = Math.random() * 2 * r + y - r;
+        } while ((Math.pow(x - x2, 2) + Math.pow(y - y2, 2)) > Math.pow(r - circle_r - 2, 2));
+        str += '<circle cx="' + x2 + '" cy="' + y2 + '" r="' + circle_r + '" style="fill:rgb(65,105,225);" />';
+      }
+
+      str += "</svg>";
+
+      return str;
+    }
+
+    function generate_set(same_line, same_dot, odd_line, odd_dot, random_stim){
+      var html = '<div style="position: relative; width:'+stim_width_height*4+'px; height:'+stim_width_height+'px;">';
+      if (random_stim == 1){
+        html += '<div class="ex1">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';}
+      else if (random_stim == 2){
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';}
+      else if (random_stim == 3){
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(odd_dot, odd_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(same_dot, same_line)+'</div>';}
+      else {
+        html += '<div class="ex1">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex2">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex3">'+generate_stim(same_dot, same_line)+'</div>'+
+          '<div class="ex4">'+generate_stim(odd_dot, same_line)+'</div>';}
+
+      html += '</div>';
+
+      return html;
+    }
+
+  </script>
+</html>
