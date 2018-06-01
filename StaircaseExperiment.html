@@ -86,10 +86,13 @@
       stimulus: '',
       choices: ['1', '2', '3', '4'],
       on_start: function(trial) {
-        pair_type = randomize_pair_type();
+/*      pair_type = randomize_pair_type(); */
         correct = randomize_correct();
-        pair = randomize_pair(pair_type);
-        stimulus = calculate_dimension_values(pair_type, pair, correct);
+        pair = randomize_pair();
+        stimulus = calculate_dimension_values(pair, correct);
+        if (pair =='1'||'2'||'3'||'4') {pair_type = 'bw'}
+        else if (pair =='5'||'6'||'7'||'8'||'9'||'10'||'11'||'12') {pair_type = 'wi'}
+        else {pair_type = 'irr'}
         if(pair_type == 'bw'){
           distance = rel_bw_distance;
         } else if(pair_type == 'wi'){
@@ -98,7 +101,7 @@
           distance = irr_distance;
         }
         trial.stimulus = stimulus;
-        trial.data = {test_part: 'test', pair_type: pair_type, distance: distance, correct_response: correct}
+        trial.data = {test_part: 'test',/*pair_type: pair_type,*/ distance: distance, correct_response: correct}
       },
       on_finish: function(data) {
         data.correct = data.key_press == jsPsych.pluginAPI.convertKeyCharacterToKeyCode(data.correct_response);
@@ -112,6 +115,9 @@
       },
     }
 
+    /* determines which dimension is relevant throughout the experiment */
+    var relevant_dimension = jsPsych.randomization.sampleWithoutReplacement(['dots', 'lines'], 1) [0];
+
     /* determine which sunburst will be the odd-ball */
     function randomize_correct() {
       return jsPsych.randomization.sampleWithoutReplacement(['1', '2', '3', '4'], 1)[0];
@@ -119,25 +125,7 @@
 
     var answer = randomize_correct();
 
-    function last_correct() {
-      return jsPsych.data.get().last(1).values()[0].correct;
-    }
-
-    function less_or_more() {
-      var less = jsPsych.randomization.sampleWithoutReplacement(['less', 'more'], 1)[0];
-      var boolean = less == "less";
-      return boolean;
-    }
-
-    /* determine which pair_type will be tested for each trial */
-    function randomize_pair_type() {
-      dimension = jsPsych.randomization.sampleWithoutReplacement(['rel', 'irr'], 1)[0];
-      if (dimension == 'rel') {
-        dimension = jsPsych.randomization.sampleWithoutReplacement(['bw', 'wi'], 1)[0];
-      }
-      return dimension;
-    }
-
+    /* determines which distance to adjust after each trial*/
     function which_distance(pair_type) {
       if (pair_type == 'bw') {
         return rel_bw_distance;
@@ -150,7 +138,40 @@
       }
     }
 
-    function randomize_pair(pair_type) {
+    /* determines if the last answer was correct */
+    function last_correct() {
+      return jsPsych.data.get().last(1).values()[0].correct;
+    }
+
+    /* adjusts the particular distance depending on correctness of the response */
+    function adjust_distance(distance, correct) {
+      if(correct){
+        distance *= 0.85;
+      } else {
+        distance *= 1.15;
+      }
+      return distance;
+    }
+
+    /* randomly decides whether the odd-ball is more or less dense */
+    function more_or_less() {
+      var less = jsPsych.randomization.sampleWithoutReplacement(['less', 'more'], 1)[0];
+      var boolean = less == "less";
+      return boolean;
+    }
+
+    /* determines which pair type will be tested for each trial */
+/*    function randomize_pair_type() {
+      dimension = jsPsych.randomization.sampleWithoutReplacement(['rel', 'irr'], 1)[0];
+      if (dimension == 'rel') {
+        dimension = jsPsych.randomization.sampleWithoutReplacement(['bw', 'wi'], 1)[0];
+      }
+      return dimension;
+    }
+*/
+
+    /* randomly selects a pair of a certain pair type */
+/*    function randomize_pair(pair_type) {
       if (pair_type == 'bw') {
         return jsPsych.randomization.sampleWithoutReplacement(['1', '2', '3', '4'], 1)[0];
       }
@@ -161,14 +182,12 @@
         return jsPsych.randomization.sampleWithoutReplacement(['13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24'], 1)[0];
       }
     }
+*/
 
-    function adjust_distance(distance, correct) {
-      if(correct){
-        distance *= 0.85;
-      } else {
-        distance *= 1.15;
-      }
-      return distance;
+    function randomize_pair() {
+      return jsPsych.randomization.sampleWithoutReplacement(['1', '2', '3', '4', '5', '6', '7', '8', '9'+
+                                                            '10', '11', '12', '13', '14', '15, 16', '17' +
+                                                            '18', '19', '20', '21', '22', '23', '24'], 1)[0];
     }
 
     function x1_coordinate(pair) {
@@ -410,8 +429,8 @@
       return y_dim;
     }
 
-    function calculate_dimension_values(pair_type, pair, correct) {
-      var boolean = less_or_more();
+    function calculate_dimension_values(/*pair_type*/pair, correct) {
+      var boolean = more_or_less();
       if (boolean) {
         sx = x_dim_val(x1_coordinate(pair), rel_bw_distance, rel_wi_distance);
       } else {
@@ -424,8 +443,14 @@
         ox = x_dim_val(x1_coordinate(pair), rel_bw_distance, rel_wi_distance);
       }
       var oy = y_dim_val(y2_coordinate(pair), irr_distance);
-      set = generate_set(sx, sy, ox, oy, correct);
-      return set;
+      var relevant = relevant_dimension;
+      if (relevant == 'dots') {
+        set = generate_set(sx, sy, ox, oy, correct);
+        return set;
+      } else {
+        set = generate_set(sy, sx, oy, ox, correct);
+        return set;
+      }
     }
 
     function generate_set(same_dot, same_line, odd_dot, odd_line, correct) {
